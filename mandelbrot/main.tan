@@ -2,13 +2,15 @@
 (use [Coder write] /image/png)
 (use [Complex + * abs] /math/complex)
 
+; #todo Add colors.
+
 (let
     [re-min im-min re-max im-max] [-2.0 -2.0 2.0 2.0]
     [width height] [512 512]
     img (Buffer (* width height))
 )
 
-(let mandelbrot (Func [c]
+(let mandelbrot (Func c
     (let #var z (Complex 0.0))
     (for [t 0..64]
         (if (> (abs z) 2.0)
@@ -21,14 +23,17 @@
 
 (let
     re-scale (/ (- re-max re-min) (Float width))
-    ; #todo revert the im-scale to reflect the inverted screen-space y-axis.
     im-scale (/ (- im-max im-min) (Float height))
 )
 
 (let #var i 0)
 
+; #todo #perf Use floats in for loop range.
+; #todo #perf Reuse/mutate the same Complex value.
+
 (for [y 0..height]
-    (let im (+ im-min (* im-scale (Float y))))
+    ; Revert the im mapping to adjust for the inverted screen-space y-axis.
+    (let im (- im-max (* im-scale (Float y))))
     (for [x 0..width]
         (let
             re (+ re-min (* re-scale (Float x)))
@@ -38,11 +43,12 @@
         (put img i color)
         (+<- i 1)
     )
-    (echo "${y}")
+    (echo y)
 )
 
 (let
     file (fs/create "mandelbrot.png")
     coder (Coder width height :gray-8 file)
 )
+
 (write coder img)
