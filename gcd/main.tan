@@ -1,1 +1,54 @@
+(use /process)
+
 ; #todo
+
+; Returns the non-negative absolute value of an integer.
+(def abs-int (Func n
+    (if (< n 0)
+        (- 0 n)
+    (else n))
+))
+
+; Computes the greatest common divisor of two integers iteratively.
+#pub
+(def gcd (Func [a b]
+    (let #var x (abs-int a))
+    (let #var y (abs-int b))
+    (while (!= y 0)
+        (let remainder (% x y))
+        (<- x y)
+        (<- y remainder)
+    )
+    x
+))
+
+; Computes the greatest common divisor of two integers recursively.
+#pub
+(def gcd-recursive (Func [a b]
+    (let x (abs-int a))
+    (let y (abs-int b))
+    (if (== y 0)
+        x
+    (else (gcd-recursive y (% x y))))
+))
+
+; Computes the least common multiple of two integers.
+#pub
+(def lcm (Func [a b]
+    (if (or (== a 0) (== b 0))
+        0
+    (else
+        (let x (abs-int a))
+        (let y (abs-int b))
+        (* (/ x (gcd x y)) y)
+    ))
+))
+
+(let args (process/args))
+(unless (is-err? args)
+    (let a (ok-or (Int args?0) 48))
+    (let b (ok-or (Int args?1) 18))
+    (say "gcd(${a}, ${b}) = ${(gcd a b)}")
+    (say "gcd-recursive(${a}, ${b}) = ${(gcd-recursive a b)}")
+    (say "lcm(${a}, ${b}) = ${(lcm a b)}")
+)

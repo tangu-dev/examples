@@ -1,0 +1,25 @@
+(use {fibonacci fibonacci-analytic fibonacci-recursive} .)
+
+; Verifies that iterative, recursive, and analytic Fibonacci implementations match expected values.
+#test
+(def fibonacci-implementations-compute-expected-sequence (Func ()
+    (let expected [0 1 1 2 3 5 8 13 21 34 55 89 144])
+    (let total (count-of expected))
+    (for [idx 0..total]
+        (let target (expected idx))
+        (assert-eq! (fibonacci idx) target)
+        (assert-eq! (fibonacci-recursive idx) target)
+        (assert-eq! (fibonacci-analytic idx) target)
+    )
+))
+
+; Verifies that negative inputs safely evaluate to zero across all Fibonacci implementations.
+#test
+(def fibonacci-handles-non-positive-inputs (Func ()
+    (assert-eq! (fibonacci 0) 0)
+    (assert-eq! (fibonacci -5) 0)
+    (assert-eq! (fibonacci-recursive 0) 0)
+    (assert-eq! (fibonacci-recursive -5) 0)
+    (assert-eq! (fibonacci-analytic 0) 0)
+    (assert-eq! (fibonacci-analytic -5) 0)
+))

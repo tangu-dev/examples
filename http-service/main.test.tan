@@ -1,0 +1,33 @@
+(use {url-for} /web/app)
+
+(use {app-router} .)
+
+; Verifies that the index and details routes return 200 HTML responses with expected links.
+#test
+(def router-serves-html-pages (Func ()
+    (let home-resp (app-router {:method "GET" :uri "/"}))
+    (assert-eq! home-resp:status 200)
+    (assert! (contains? home-resp:body "Details"))
+    (assert! (contains? home-resp:body "/users/42"))
+
+    (let details-resp (app-router {:method "GET" :uri "/details"}))
+    (assert-eq! details-resp:status 200)
+    (assert! (contains? details-resp:body "No details"))
+    (assert-eq! (url-for :details {}) "/details")
+))
+
+; Verifies that the dynamic user route extracts path parameters and returns JSON.
+#test
+(def router-serves-user-json-endpoint (Func ()
+    (let user-resp (app-router {:method "GET" :uri "/users/42"}))
+    (assert-eq! user-resp:status 200)
+    (assert-eq! user-resp:body {:id "42" :status "active"})
+))
+
+; Verifies that unmatched routes return a 404 HTML response with escaped URI text.
+#test
+(def router-returns-not-found-for-unknown-routes (Func ()
+    (let missing-resp (app-router {:method "GET" :uri "/unknown"}))
+    (assert-eq! missing-resp:status 404)
+    (assert-eq! missing-resp:body "<p>Error /unknown</p>")
+))

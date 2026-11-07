@@ -1,0 +1,32 @@
+(use complex /math/complex)
+
+(use {
+    compute-region
+    generate-palette
+    mandelbrot
+    render-mandelbrot
+} .)
+
+; Verifies that compute-region calculates symmetric bounds around a center point.
+#test
+(def compute-region-returns-bounding-box (Func () (assert-eq! (compute-region 0.0 0.0 2.0) [-2.0 -2.0 2.0 2.0])))
+
+; Verifies that generate-palette builds 256 RGBA color entries starting with opaque black.
+#test
+(def generate-palette-builds-256-rgba-colors (Func ()
+    (let palette (generate-palette))
+    (assert-eq! (count-of palette) 256)
+    (assert-eq! palette:0 [0u8 0u8 0u8 255u8])
+))
+
+; Verifies Mandelbrot escape iterations for interior and exterior complex points and small slab rendering.
+#test
+(def mandelbrot-computes-escape-counts-and-renders-slab (Func ()
+    (assert-eq! (mandelbrot (complex/Complex 0.0 0.0)) 0)
+    (assert-eq! (mandelbrot (complex/Complex 3.0 0.0)) 1)
+
+    (let palette (generate-palette))
+    (let region (compute-region 0.0 0.0 2.0))
+    (let pixels (render-mandelbrot region 4 4 palette))
+    (assert-eq! (count-of pixels) 64)
+))

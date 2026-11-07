@@ -1,1 +1,54 @@
+(use {phi} /math)
+(use /process)
+
 ; #todo also put the analytic solution.
+
+; Computes the nth Fibonacci number iteratively.
+#pub
+(def fibonacci (Func n
+    (if (<= n 0)
+        0
+    (else
+        (let #var a 0)
+        (let #var b 1)
+        (for [_ 0..n]
+            (let next-val (+ a b))
+            (<- a b)
+            (<- b next-val)
+        )
+        a
+    ))
+))
+
+; Computes the nth Fibonacci number recursively using pattern matching.
+#pub
+(def fibonacci-recursive (Func n
+    (if (<= n 0)
+        0
+    (else
+        (when n
+            1 1
+            _ (+ (fibonacci-recursive (- n 1)) (fibonacci-recursive (- n 2)))
+        )
+    ))
+))
+
+; Computes the nth Fibonacci number analytically using Binet's formula.
+#pub
+(def fibonacci-analytic (Func n
+    (if (<= n 0)
+        0
+    (else
+        (let exponent (Float n))
+        (let numerator (- (** phi exponent) (** (- 1.0 phi) exponent)))
+        (Int (round (/ numerator (sqrt 5.0))))
+    ))
+))
+
+(let args (process/args))
+(unless (is-err? args)
+    (let n (ok-or (Int args?0) 10))
+    (say "fibonacci(${n}) = ${(fibonacci n)}")
+    (say "fibonacci-recursive(${n}) = ${(fibonacci-recursive n)}")
+    (say "fibonacci-analytic(${n}) = ${(fibonacci-analytic n)}")
+)

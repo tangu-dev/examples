@@ -1,43 +1,92 @@
-(use [html-from-expr] /html)
-(use [serve] /network/http/server)
+(use /process)
+(use {
+    get-path-param
+    path-of
+    respond-html
+    respond-json
+    router
+    serve
+    url-for
+    with-status
+} /web/app)
 
 ; #idea (Str (HTML ...))
 ; #todo drinks errors, investigate
-(let index-handler (Func []
-    (let body (html-from-expr
-        '(p
-            "Go to " (a {:href "/details"} "Details")
-        )
-    ))
-    [200 {:Content-Type "text/html"} body]
+
+; Renders the home page with links to details and a sample user profile.
+#pub
+(def index-handler (Func _req
+    (let details-path (url-for :details {}))
+    (let user-path (url-for :user-show {:id "42"}))
+    (respond-html #shtml [:main
+        [:h1 "Tangu HTTP Service"]
+        [:p
+            "Go to "
+            [:a {:href details-path} "Details"]
+        ]
+        [:p
+            "Inspect "
+            [:a {:href user-path} "User 42 JSON"]
+        ]
+    ])
 ))
 
-(let details-handler (Func []
-    (let body (html-from-expr '[
-        (p "No details")
-        (p "Go to " (a {:href "/"} "Home"))
-    ]))
-    [200 {:Content-Type "text/html"} body]
+; Renders the details page with a link back to the home page.
+#pub
+(def details-handler (Func _req
+    (let home-path (url-for :index {}))
+    (respond-html #shtml [:main
+        [:p "No details"]
+        [:p
+            "Go to "
+            [:a {:href home-path} "Home"]
+        ]
+    ])
 ))
 
-(let error-handler (Func [req]
-    ; example with string.
-    (let body """
-    <p>Error ${(req :uri)}</p>
-    """)
-
-    [500 {:Content-Type "text/html"} body]
+; Returns a JSON payload for the requested user identifier.
+#pub
+(def user-handler (Func req
+    (let user-id (get-path-param req :id "0"))
+    (respond-json {:id user-id :status "active"})
 ))
 
-(let router (Func [req]
-    (let uri (req :uri))
-    (cond
-        (= "/" uri) (index-handler req)
-        (= "/details" uri) (details-handler req)
-        else (error-handler req)
-    )
+; Renders a 404 Not Found HTML response for unmatched routes.
+#pub
+(def not-found-handler (Func req
+    (let uri (some-or (path-of req) req?uri "/"))
+    (with-status (respond-html #shtml [:p "Error ${uri}"]) 404)
 ))
 
-(echo "listening at localhost:8000...")
+#pub
+(def app-router (router
+    [
+        :get
+        :index
+        "/"
+        index-handler
+    ]
+    [
+        :get
+        :details
+        "/details"
+        details-handler
+    ]
+    [
+        :get
+        :user-show
+        "/users/:id"
+        user-handler
+    ]
+    [
+        :not-found
+        not-found-handler
+    ]
+))
 
-(serve {:port 8000} router)
+(let args (process/args))
+(unless (is-err? args)
+    (let port (ok-or (Int args?0) 8000))
+    (say "Listening at http://localhost:${port}...")
+    (serve app-router {_ port})
+)

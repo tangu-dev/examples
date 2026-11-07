@@ -1,0 +1,26 @@
+(use {gcd gcd-recursive lcm} .)
+
+; Verifies iterative and recursive Euclidean GCD on common, coprime, zero, and negative inputs.
+#test
+(def gcd-computes-greatest-common-divisor (Func ()
+    (assert-eq! (gcd 48 18) 6)
+    (assert-eq! (gcd-recursive 48 18) 6)
+    (assert-eq! (gcd 101 103) 1)
+    (assert-eq! (gcd-recursive 101 103) 1)
+    (assert-eq! (gcd 0 25) 25)
+    (assert-eq! (gcd 25 0) 25)
+    (assert-eq! (gcd 0 0) 0)
+    (assert-eq! (gcd -48 18) 6)
+    (assert-eq! (gcd-recursive 48 -18) 6)
+))
+
+; Verifies least common multiple calculation including zero and negative inputs.
+#test
+(def lcm-computes-least-common-multiple (Func ()
+    (assert-eq! (lcm 48 18) 144)
+    (assert-eq! (lcm 12 15) 60)
+    (assert-eq! (lcm 7 5) 35)
+    (assert-eq! (lcm 0 18) 0)
+    (assert-eq! (lcm 48 0) 0)
+    (assert-eq! (lcm -12 15) 60)
+))

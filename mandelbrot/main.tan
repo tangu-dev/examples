@@ -1,54 +1,77 @@
-(use /fs)
-(use [Coder write] /image/png)
-(use [Complex + * abs] /math/complex)
+(use {Image} /image)
+(use png /image/png)
+(use {pi} /math)
+(use complex /math/complex)
+(use /process)
 
-; #todo Add colors.
+; Computes the bounding box [re-min im-min re-max im-max] around (re, im) with half-size s.
+#pub
+(def compute-region (Func [re im s] [(- re s) (- im s) (+ re s) (+ im s)]))
 
-(let
-    [re-min im-min re-max im-max] [-2.0 -2.0 2.0 2.0]
-    [width height] [512 512]
-    img (Buffer (* width height))
-)
+; #todo Extract color-generation code to color crate.
+; Generates a 256-color RGBA palette for escape-time coloring.
+#pub
+(def generate-palette (Func ()
+    ; #todo Use Vec3/Vec4/Color.
+    ; #todo Force the array size.
+    ; #todo Could use Buf instead of Arr for the colors.
+    (for->seq [idx 0..256]
+        (if (== idx 0)
+            (continue [0u8 0u8 0u8 255u8])
+        )
+        (let t (/ (Float idx) 256.0))
+        (let r (U8 (* 128.0 (+ 1.0 (sin (* 2.0 pi t))))))
+        (let g (U8 (* 128.0 (+ 1.0 (sin (* 2.0 pi (+ t 0.33)))))))
+        (let b (U8 (* 128.0 (+ 1.0 (sin (* 2.0 pi (+ t 0.67)))))))
+        [r g b 255u8]
+    )
+))
 
-(let mandelbrot (Func c
-    (let #var z (Complex 0.0))
-    (for [t 0..64]
-        (if (> (abs z) 2.0)
+; Computes the escape-time iteration count for a complex point c.
+#pub
+(def mandelbrot (Func c
+    (let #var z (complex/Complex 0.0))
+    (for [t 0..256]
+        (if (> (complex/abs z) 2.0)
             (return t)
         )
-        (<- z (+ (* z z) c))
+        (<- z (complex/+ (complex/* z z) c))
     )
     0
 ))
 
-(let
-    re-scale (/ (- re-max re-min) (Float width))
-    im-scale (/ (- im-max im-min) (Float height))
-)
+; Renders the Mandelbrot set for the given region and dimensions into an RGBA Slab.
+#pub
+(def render-mandelbrot (Func [region width height palette]
+    (let [re-min im-min re-max im-max] region)
+    (let pixels (Slab (* width height 4)))
+    (let re-scale (/ (- re-max re-min) (Float width)))
+    (let im-scale (/ (- im-max im-min) (Float height)))
+    (let #var offset 0)
 
-(let #var i 0)
-
-; #todo #perf Use floats in for loop range.
-; #todo #perf Reuse/mutate the same Complex value.
-
-(for [y 0..height]
-    ; Revert the im mapping to adjust for the inverted screen-space y-axis.
-    (let im (- im-max (* im-scale (Float y))))
-    (for [x 0..width]
-        (let
-            re (+ re-min (* re-scale (Float x)))
-            z (Complex re im)
-            color (U8 (mandelbrot z))
+    ; #todo #perf Use floats in for loop range.
+    ; #todo #perf Reuse/mutate the same Complex value.
+    (for [y 0..height]
+        ; Revert the im mapping to adjust for the inverted screen-space y-axis.
+        (let im (- im-max (* im-scale (Float y))))
+        (for [x 0..width]
+            (let re (+ re-min (* re-scale (Float x))))
+            (let color (mandelbrot (complex/Complex re im)))
+            (put pixels offset (palette color))
+            (+<- offset 4)
         )
-        (put img i color)
-        (+<- i 1)
     )
-    (echo y)
-)
+    pixels
+))
 
-(let
-    file (fs/create "mandelbrot.png")
-    coder (Coder width height :gray-8 file)
+(let args (process/args))
+(unless (is-err? args)
+    (let size (ok-or (Int args?0) 512))
+    ; Elephant Valley.
+    (let region (compute-region 0.3 0.5 0.2))
+    (let palette (generate-palette))
+    (let pixels (render-mandelbrot region size size palette))
+    (let image (Image size size :rgba pixels))
+    (png/encode-to-file "mandelbrot.png" image)
+    (say "Rendered ${size}x${size} Mandelbrot image to mandelbrot.png.")
 )
-
-(write coder img)
