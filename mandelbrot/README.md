@@ -9,6 +9,14 @@ tangu run mandelbrot
 tangu run mandelbrot 256
 ```
 
+## Compile & Run (Native)
+
+```sh
+tangu compile --target native mandelbrot
+./mandelbrot/main
+./mandelbrot/main 256
+```
+
 ## Test
 
 ```sh

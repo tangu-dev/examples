@@ -8,6 +8,13 @@ A Monte Carlo path-tracing renderer based on *Ray Tracing in One Weekend*, suppo
 tangu run raytracer
 ```
 
+## Compile & Run (Native)
+
+```sh
+tangu compile --target native raytracer
+./raytracer/main
+```
+
 ## Test
 
 ```sh
