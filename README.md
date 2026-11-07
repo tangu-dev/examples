@@ -8,6 +8,7 @@ A collection of examples for the Tangu programming language.
 - [`gcd`](gcd/main.tan) — Iterative and recursive Euclidean Greatest Common Divisor (`gcd`) and Least Common Multiple (`lcm`).
 - [`http-service`](http-service/main.tan) — HTTP web server using `/web/app` declarative routing, `#shtml` markup, reverse routing (`url-for`), and JSON responses.
 - [`mandelbrot`](mandelbrot/main.tan) — Mandelbrot fractal renderer outputting a 256-color RGBA PNG via `/math/complex`, `Slab`, and `/image/png`.
+- [`raytracer`](raytracer/main.tan) — Monte Carlo path-tracing renderer supporting Lambertian diffuse, metal, and dielectric glass materials, outputting an RGB PNG via `/vec`, `/rng`, `Slab`, and `/image/png`.
 
 ## Run the Examples
 
@@ -16,6 +17,7 @@ tangu run fibonacci
 tangu run gcd
 tangu run http-service
 tangu run mandelbrot
+tangu run raytracer
 ```
 
 ## Run the Tests

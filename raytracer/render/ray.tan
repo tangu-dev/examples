@@ -1,0 +1,18 @@
+(use {* + Vec3} /vec)
+
+; 3D ray with an origin point and a direction vector.
+#pub
+(def Ray (Struct
+    #Vec3 origin
+    #Vec3 dir
+))
+
+; #todo Find better name.
+; Returns the 3D point along the ray at parameter t.
+#pub
+#inline
+#(Func [Ray Float] Vec3)
+(def point-at (Func [ray t]
+    (let (Ray origin dir) ray)
+    (+ origin (* dir t))
+))

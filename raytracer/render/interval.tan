@@ -1,0 +1,29 @@
+; #todo Could be the Range type, but the implementation of Range is currently not flexible enough.
+; #todo Move this to standard library?
+; #todo What about a time interval?
+
+; Numeric interval struct with minimum and maximum bounds.
+#pub
+(def Interval (Struct
+    #Float min-val
+    #Float max-val
+))
+
+; Checks if a value is strictly inside the interval boundaries.
+#pub
+#inline
+(def interval-surrounds? (Func [interval x]
+    ; #todo Consider open-ended/close-ended.
+    ; #todo Use multi-argument `<`.
+    (let (Interval min-val max-val) interval)
+    (and (< min-val x) (< x max-val))
+))
+
+; Clamps a value into the interval bounds.
+; #todo Implement with /float/clamp
+#pub
+#inline
+(def interval-clamp (Func [interval x]
+    (let (Interval min-val max-val) interval)
+    (clamp x min-val max-val)
+))

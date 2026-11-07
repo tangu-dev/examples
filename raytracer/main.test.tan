@@ -1,0 +1,67 @@
+(use {Vec3} /vec)
+
+(use {
+    Camera-construct
+    Hittable-List
+    Interval
+    Ray
+    Sphere
+    hit-test
+    interval-clamp
+    interval-surrounds?
+    material-lambertian
+    point-at
+    render
+} ./render)
+
+; Verifies that interval-surrounds? and interval-clamp enforce interval bounds.
+#test
+(def interval-enforces-bounds (Func ()
+    (let iv (Interval 0.0 10.0))
+    (assert! (interval-surrounds? iv 5.0))
+    (assert! (not (interval-surrounds? iv 0.0)))
+    (assert! (not (interval-surrounds? iv 10.0)))
+    (assert-eq! (interval-clamp iv -2.0) 0.0)
+    (assert-eq! (interval-clamp iv 15.0) 10.0)
+))
+
+; Verifies that point-at evaluates a 3D point along a ray at distance t.
+#test
+(def point-at-evaluates-ray-position (Func ()
+    (let ray (Ray (Vec3 1.0 2.0 3.0) (Vec3 0.0 1.0 -2.0)))
+    (let p (point-at ray 2.5))
+    (assert-eq! p:0 1.0)
+    (assert-eq! p:1 4.5)
+    (assert-eq! p:2 -2.0)
+))
+
+; Verifies that hit-test-sphere and hit-test find the nearest sphere intersection.
+#test
+(def hit-test-finds-nearest-sphere-intersection (Func ()
+    (let mat (material-lambertian (Vec3 0.8 0.2 0.2)))
+    (let near-sphere (Sphere (Vec3 0.0 0.0 -1.0) 0.5 mat))
+    (let far-sphere (Sphere (Vec3 0.0 0.0 -3.0) 0.5 mat))
+    (let world (Hittable-List [
+        far-sphere
+        near-sphere
+    ]))
+    (let ray (Ray (Vec3 0.0 0.0 0.0) (Vec3 0.0 0.0 -1.0)))
+    (let hit (hit-test world ray (Interval 0.001 100.0)))
+    (assert! (is-some? hit))
+    (assert! (< (abs (- hit:t 0.5)) 0.0001))
+    (assert! hit:front-face)
+))
+
+; Verifies that render produces an RGB Slab of size width * height * 3.
+#test
+(def render-produces-rgb-pixel-slab (Func ()
+    (let world (Hittable-List [(Sphere (Vec3 0.0 0.0 -1.0) 0.5 (material-lambertian (Vec3 0.5 0.5 0.5)))]))
+    (let cam (Camera-construct {
+        :width 4
+        :height 2
+        :samples-per-pixel 1
+        :max-depth 2
+    }))
+    (let pixels (render cam world))
+    (assert-eq! (count-of pixels) 24)
+))

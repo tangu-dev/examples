@@ -1,0 +1,229 @@
+(use {random-float} /rng)
+(use {
+    *
+    +
+    -
+    /
+    Vec3
+    cmul
+    is-near-zero?
+    lerp
+    normalize
+} /vec)
+
+; Construct and dispatch rays into the world.
+; Use the results of these rays to construct the rendered image.
+#pub
+(def Camera (Struct
+    #Float aspect-ratio
+    #Int width
+    #Int height
+    #Int samples-per-pixel
+    #Vec3 center
+    #Float focal-length
+    #Float viewport-width
+    #Float viewport-height
+    #Vec3 pixel-delta-u
+    #Vec3 pixel-delta-v
+    #Vec3 viewport-upper-left
+    #Vec3 pixel00-loc
+    #Float pixel-samples-scale
+    #Int max-depth
+))
+
+; Constructs a camera with default or custom options.
+#pub
+(def Camera-construct (Func params
+    (let width (some-or params?width 320))
+
+    ; #todo Extract utility function?
+    (let height (some-or params?height (Int (/ (Float width) (some-or params?aspect-ratio (/ 16.0 10.0))))))
+    (let aspect-ratio (/ (Float width) (Float height)))
+
+    (let samples-per-pixel (some-or params?samples-per-pixel 1))
+
+    (let center (some-or params?center (Vec3 0.0 0.0 0.0)))
+
+    ; Distance from camera center (focal point) to viewport center.
+    (let focal-length (some-or params?focal-length 1.0))
+
+    ; #todo Make some of the following params customizable?
+    (let viewport-height 2.0)
+    (let viewport-width (* viewport-height aspect-ratio))
+
+    (let viewport-u (Vec3 viewport-width 0.0 0.0))
+    (let viewport-v (Vec3 0.0 (- 0.0 viewport-height) 0.0))
+
+    (let pixel-delta-u (/ viewport-u (Float width)))
+    (let pixel-delta-v (/ viewport-v (Float height)))
+
+    ; Calculate the location of the upper left pixel.
+    (let t1 (- center (Vec3 0.0 0.0 focal-length)))
+    (let t2 (- t1 (/ viewport-u 2.0)))
+    (let viewport-upper-left (- t2 (/ viewport-v 2.0)))
+    (let pixel00-loc (+ viewport-upper-left (* (+ pixel-delta-u pixel-delta-v) 0.5)))
+    (let pixel-samples-scale (/ 1.0 (Float samples-per-pixel)))
+
+    (let max-depth (some-or params?max-depth 5))
+
+    (Camera
+        aspect-ratio
+        width
+        height
+        samples-per-pixel
+        center
+        focal-length
+        viewport-width
+        viewport-height
+        pixel-delta-u
+        pixel-delta-v
+        viewport-upper-left
+        pixel00-loc
+        pixel-samples-scale
+        max-depth
+    )
+))
+
+(let #pub make-camera Camera-construct)
+
+; Returns the vector to a random point in the [-.5,-.5]-[+.5,+.5] unit square.
+#inline
+(def sample-square (Func () (Vec3 (- (random-float) 0.5) (- (random-float) 0.5) 0.0)))
+
+; Constructs a camera ray originating from origin to a randomly sampled point near x, y.
+#pub
+#inline
+(def get-sample-ray (Func [cam x y]
+    (let xf (Float x))
+    (let yf (Float y))
+    (let (Camera _ _ _ _ center _ _ _ pixel-delta-u pixel-delta-v _ pixel00-loc _ _) cam)
+    (let offset (sample-square))
+    (let pixel-sample (+ pixel00-loc (+ (* pixel-delta-u (+ xf offset:0)) (* pixel-delta-v (+ yf offset:1)))))
+    (let ray-dir (- pixel-sample center))
+    (Ray center (normalize ray-dir))
+))
+
+; Returns a non-perturbed ray directed at pixel x, y.
+#pub
+#inline
+(def get-ray (Func [cam x y]
+    (let xf (Float x))
+    (let yf (Float y))
+    (let (Camera _ _ _ _ center _ _ _ pixel-delta-u pixel-delta-v _ pixel00-loc _ _) cam)
+    (let pixel-sample (+ pixel00-loc (+ (* pixel-delta-u xf) (* pixel-delta-v yf))))
+    (Ray center (normalize (- pixel-sample center)))
+))
+
+; Computes the color of a ray traced into the world.
+#pub
+#inline
+(def compute-ray-color (Func [ray depth world]
+    (if (<= depth 0)
+        (Vec3 0.0 0.0 0.0)
+    (else
+        (let infinity 1_000_000_000.0)
+        (let hit (hit-test world ray (Interval 0.001 infinity)))
+        (let (Ray _ dir) ray)
+        (if (is-some? hit)
+            (let (Hit _ point normal front-face mat) hit)
+            (let (Material mat-type albedo fuzz ref-idx) mat)
+            (when mat-type
+                :metal
+                    (do
+                        (let reflected (reflect dir normal))
+                        (let fuzzed (+ reflected (* (random-unit-vec3) fuzz)))
+                        (if (> (* fuzzed normal) 0.0)
+                            (cmul (compute-ray-color (Ray point (normalize fuzzed)) (- depth 1) world) albedo)
+                        (else (Vec3 0.0 0.0 0.0)))
+                    )
+                :glass
+                    (do
+                        (let ri (if front-face
+                            (/ 1.0 ref-idx)
+                        (else ref-idx)))
+                        (let unit-dir (normalize dir))
+                        (let cos-theta (min (* (* unit-dir -1.0) normal) 1.0))
+                        (let sin-theta (sqrt (max (- 1.0 (* cos-theta cos-theta)) 0.0)))
+                        (let cannot-refract (> (* ri sin-theta) 1.0))
+                        (let is-reflect (or cannot-refract (> (reflectance cos-theta ri) (random-float))))
+                        (let direction (if is-reflect
+                            (reflect unit-dir normal)
+                        (else (refract unit-dir normal ri))))
+                        (cmul (compute-ray-color (Ray point (normalize direction)) (- depth 1) world) albedo)
+                    )
+                _
+                    (do
+                        (let scatter-dir (+ normal (random-unit-vec3)))
+                        (let reflection-dir (if (is-near-zero? scatter-dir)
+                            normal
+                        (else (normalize scatter-dir))))
+                        (cmul (compute-ray-color (Ray point reflection-dir) (- depth 1) world) albedo)
+                    )
+            )
+        (else
+            (let a (* (+ dir:1 1.0) 0.5))
+            (lerp (Vec3 1.0 1.0 1.0) (Vec3 0.5 0.7 1.0) a)
+        ))
+    ))
+))
+
+; Renders the scene to camera viewport and returns the image buffer.
+#pub
+(def render (Func [cam world]
+    (let (Camera
+        _
+        width
+        height
+        samples-per-pixel
+        center
+        _
+        _
+        _
+        pixel-delta-u
+        pixel-delta-v
+        _
+        pixel00-loc
+        pixel-samples-scale
+        max-depth
+    ) cam)
+
+    (let pixels (Slab (* width height 3)))
+    (let #var offset 0)
+    (let progress-step (max (Int (/ (Float height) 10.0)) 1))
+
+    (for [y 0..height]
+        (if (and (>= height 10) (== (% y progress-step) 0))
+            (say "[${(Int (/ (* (Float y) 100.0) (Float height)))}%] Rendering scanline ${y} of ${height}...")
+        )
+        (let yf (Float y))
+        (for [x 0..width]
+            (let xf (Float x))
+            (let #var color (Vec3 0.0 0.0 0.0))
+            (let pixel-center (+ pixel00-loc (+ (* pixel-delta-u xf) (* pixel-delta-v yf))))
+            (if (== samples-per-pixel 1)
+                (let ray (Ray center (normalize (- pixel-center center))))
+                ; Avoid compound `+<-` on struct types to maintain Cranelift pointer integrity.
+                (<- color (compute-ray-color ray max-depth world))
+            (else
+                (for [_ 0..samples-per-pixel]
+                    (let rx (- (random-float) 0.5))
+                    (let ry (- (random-float) 0.5))
+                    (let pixel-sample (+ pixel-center (+ (* pixel-delta-u rx) (* pixel-delta-v ry))))
+                    (let ray (Ray center (normalize (- pixel-sample center))))
+                    ; Avoid compound `+<-` on struct types to maintain Cranelift pointer integrity.
+                    (let next-color (+ color (compute-ray-color ray max-depth world)))
+                    (<- color next-color)
+                )
+            ))
+
+            (let s-color (* color pixel-samples-scale))
+            (let r-byte (Int (* 255.999 (sqrt (clamp s-color:0 0.0 1.0)))))
+            (let g-byte (Int (* 255.999 (sqrt (clamp s-color:1 0.0 1.0)))))
+            (let b-byte (Int (* 255.999 (sqrt (clamp s-color:2 0.0 1.0)))))
+            (put-many pixels offset r-byte g-byte b-byte)
+            (+<- offset 3)
+        )
+    )
+
+    pixels
+))

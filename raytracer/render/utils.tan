@@ -1,0 +1,72 @@
+(use {random-float} /rng)
+(use {
+    *
+    +
+    -
+    /
+    Vec3
+    length-squared-of
+} /vec)
+
+; Reflects a vector v about a surface normal n.
+#pub
+#inline
+(def reflect (Func [v n] (- v (* n (* (* v n) 2.0)))))
+
+; Refracts a unit vector uv through a surface with unit normal n and refraction ratio ri.
+#pub
+#inline
+(def refract (Func [uv n ri]
+    (let cos-theta (min (* (* uv -1.0) n) 1.0))
+    (let r-out-perp (* (+ uv (* n cos-theta)) ri))
+    (let r-out-parallel (* n (* -1.0 (sqrt (abs (- 1.0 (length-squared-of r-out-perp)))))))
+    (+ r-out-perp r-out-parallel)
+))
+
+; Computes Schlick's approximation for reflectance.
+#pub
+#inline
+(def reflectance (Func [cosine ref-idx]
+    (let r0-root (/ (- 1.0 ref-idx) (+ 1.0 ref-idx)))
+    (let r0 (* r0-root r0-root))
+    (let one-minus-cos (- 1.0 cosine))
+    (let c2 (* one-minus-cos one-minus-cos))
+    (let c5 (* c2 c2 one-minus-cos))
+    (+ r0 (* (- 1.0 r0) c5))
+))
+
+; Generates a random vector within bounded coordinates.
+#pub
+#inline
+(def random-vec3 (Func [min-val max-val]
+    (let span (- max-val min-val))
+    (Vec3
+        (+ min-val (* span (random-float)))
+        (+ min-val (* span (random-float)))
+        (+ min-val (* span (random-float)))
+    )
+))
+
+; Generates a random unit vector on the unit sphere.
+#pub
+#inline
+(def random-unit-vec3 (Func ()
+    (let z (- 1.0 (* 2.0 (random-float))))
+    (let r2 (- 1.0 (* z z)))
+    (let r (if (> r2 0.0)
+        (sqrt r2)
+    (else 0.0)))
+    (let pi 3.141592653589793)
+    (let phi (* (* 2.0 pi) (random-float)))
+    (Vec3 (* r (cos phi)) (* r (sin phi)) z)
+))
+
+; Generates a random unit vector on the hemisphere defined by a normal.
+#pub
+#inline
+(def random-on-hemisphere (Func normal
+    (let on-unit-sphere (random-unit-vec3))
+    (if (> (* on-unit-sphere normal) 0.0)
+        on-unit-sphere
+    (else (* on-unit-sphere -1.0)))
+))

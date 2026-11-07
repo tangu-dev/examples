@@ -1,0 +1,57 @@
+(use {Duration-from Instant} /chrono)
+(use {encode-to-file} /image/png)
+(use {Vec3} /vec)
+
+(use {
+    Camera-construct
+    Hittable-List
+    Sphere
+    material-glass
+    material-lambertian
+    material-metal
+    render
+} ./render)
+
+(let world (Hittable-List [
+    (Sphere
+        (Vec3 0.0 -100.5 -1.0)
+        100.0
+        (material-lambertian (Vec3 0.2 0.8 0.2))
+    )
+    (Sphere (Vec3 0.0 0.0 -1.2) 0.5 (material-lambertian (Vec3 0.85 0.15 0.2)))
+    (Sphere (Vec3 -1.0 0.0 -1.0) 0.5 (material-glass 1.5))
+    (Sphere (Vec3 -1.0 0.0 -1.0) 0.4 (material-glass (/ 1.0 1.5)))
+    (Sphere (Vec3 1.0 0.0 -1.0) 0.5 (material-metal (Vec3 0.85 0.65 0.2) 0.05))
+    (Sphere (Vec3 0.45 -0.3 -0.7) 0.2 (material-lambertian (Vec3 0.1 0.35 0.9)))
+]))
+
+(let width 256)
+(let height 192)
+(let samples-per-pixel 20)
+(let cam (Camera-construct {
+    _ width
+    _ height
+    _ samples-per-pixel
+    :max-depth 8
+}))
+
+(let start-time (Instant))
+(let pixels (render cam world))
+(encode-to-file "scene.png" {
+    _ width
+    _ height
+    :encoding "rgb"
+    :data pixels
+})
+(let [secs nanos] (Duration-from start-time))
+(let elapsed-ms (+ (* secs 1000) (Int (/ (Float nanos) 1_000_000.0))))
+
+(let total-pixels (* width height))
+(let total-samples (* total-pixels samples-per-pixel))
+
+(say "Elapsed time (ms): ${elapsed-ms}")
+(say "Total pixels: ${total-pixels}")
+(say "Total ray samples: ${total-samples}")
+(if (> elapsed-ms 0)
+    (say "Rays per second: ${(/ (Float (* total-samples 1000)) (Float elapsed-ms))}")
+)

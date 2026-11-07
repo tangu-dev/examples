@@ -1,0 +1,102 @@
+(use {
+    *
+    Vec3
+    cmul
+    is-near-zero?
+    length-squared-of
+    normalize
+} /vec)
+
+(use {
+    random-on-hemisphere
+    random-unit-vec3
+    random-vec3
+    reflect
+    reflectance
+    refract
+} .)
+
+; Tests that random-vec3 generates bounded coordinates.
+#test
+(def random-vec3-generates-bounded-coordinates (Func ()
+    (let v (random-vec3 -1.0 1.0))
+    (assert! (and (>= v:0 -1.0) (<= v:0 1.0)))
+    (assert! (and (>= v:1 -1.0) (<= v:1 1.0)))
+    (assert! (and (>= v:2 -1.0) (<= v:2 1.0)))
+))
+
+; Tests that random-unit-vec3 produces a vector on the unit sphere.
+#test
+(def random-unit-vec3-lies-on-unit-sphere (Func ()
+    (let v (random-unit-vec3))
+    (let len-sq (length-squared-of v))
+    (assert! (< (abs (- len-sq 1.0)) 0.001))
+))
+
+; Tests that random-on-hemisphere aligns with the surface normal.
+#test
+(def random-on-hemisphere-aligns-with-normal (Func ()
+    (let normal (Vec3 1.0 0.0 0.0))
+    (let v (random-on-hemisphere normal))
+    (assert! (> (* v normal) 0.0))
+))
+
+; Tests that is-near-zero? identifies tiny vectors.
+#test
+(def is-near-zero-identifies-tiny-vectors (Func ()
+    (assert! (is-near-zero? (Vec3 0.000000001 0.000000001 0.000000001)))
+    (assert! (not (is-near-zero? (Vec3 0.01 0.0 0.0))))
+))
+
+; Tests that cmul performs component-wise multiplication.
+#test
+(def cmul-multiplies-components (Func ()
+    (let a (Vec3 1.0 2.0 3.0))
+    (let b (Vec3 0.5 0.25 2.0))
+    (let res (cmul a b))
+    (assert-eq! res:0 0.5)
+    (assert-eq! res:1 0.5)
+    (assert-eq! res:2 6.0)
+))
+
+; Tests that reflect computes the specular reflection vector.
+#test
+(def reflect-computes-specular-direction (Func ()
+    (let v (Vec3 1.0 -1.0 0.0))
+    (let n (Vec3 0.0 1.0 0.0))
+    (let r (reflect v n))
+    (assert-eq! r:0 1.0)
+    (assert-eq! r:1 1.0)
+    (assert-eq! r:2 0.0)
+))
+
+; Tests that refract passes straight through at normal incidence.
+#test
+(def refract-transmits-straight-at-normal-incidence (Func ()
+    (let uv (Vec3 0.0 -1.0 0.0))
+    (let n (Vec3 0.0 1.0 0.0))
+    (let r (refract uv n (/ 1.0 1.5)))
+    (assert! (< (abs r:0) 0.0001))
+    (assert! (< (abs (- r:1 -1.0)) 0.0001))
+    (assert! (< (abs r:2) 0.0001))
+))
+
+; Tests that refract bends towards the normal when entering a denser medium.
+#test
+(def refract-bends-towards-normal (Func ()
+    (let uv (normalize (Vec3 1.0 -1.0 0.0)))
+    (let n (Vec3 0.0 1.0 0.0))
+    (let r (refract uv n (/ 1.0 1.5)))
+    (assert! (< (abs (- (length-squared-of r) 1.0)) 0.0001))
+    (assert! (< (abs (- r:0 0.4714)) 0.001))
+    (assert! (< (abs (- r:1 -0.8819)) 0.001))
+))
+
+; Tests that reflectance evaluates Schlick's approximation.
+#test
+(def reflectance-evaluates-schlick-approximation (Func ()
+    (let r0 (reflectance 1.0 (/ 1.0 1.5)))
+    (let r90 (reflectance 0.0 (/ 1.0 1.5)))
+    (assert! (< (abs (- r0 0.04)) 0.001))
+    (assert! (< (abs (- r90 1.0)) 0.001))
+))

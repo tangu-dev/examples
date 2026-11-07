@@ -1,0 +1,35 @@
+(use {Vec3} /vec)
+
+; Hit record struct.
+#pub
+(def Hit (Struct
+    #Float t
+    #Vec3 point
+    #Vec3 normal
+    #Bool front-face
+    #Material mat
+))
+
+; Hittable-List struct.
+#pub
+(def Hittable-List (Struct
+    #(Array Sphere) objects
+))
+
+; Evaluates ray intersection across hittable entities.
+#pub
+#inline
+(def hit-test (Func [this ray ray-t]
+    (let (Interval min-val max-val) ray-t)
+    (let #var nearest-t max-val)
+    (let #var hit ())
+    (for [obj this:objects]
+        (let temp-hit (hit-test-sphere obj ray (Interval min-val nearest-t)))
+        (if (is-some? temp-hit)
+            (let (Hit ht _ _ _ _) temp-hit)
+            (<- hit temp-hit)
+            (<- nearest-t ht)
+        )
+    )
+    hit
+))

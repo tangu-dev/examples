@@ -1,0 +1,62 @@
+(use {
+    *
+    +
+    -
+    /
+    Vec3
+    length-squared-of
+} /vec)
+
+; Sphere primitive struct.
+#pub
+(def Sphere (Struct
+    #Vec3 center
+    #Float radius
+    #Material mat
+))
+
+; Evaluates ray intersection with a sphere primitive.
+#pub
+#inline
+(def hit-test-sphere (Func [this ray ray-t]
+    (let (Sphere center radius mat) this)
+    (let (Ray origin dir) ray)
+
+    (let oc (- center origin))
+    (let h (* dir oc))
+    (let c (- (length-squared-of oc) (* radius radius)))
+
+    ; Early geometric reject: if ray origin is outside sphere and ray points away, miss.
+    (if (and (> c 0.0) (< h 0.0))
+        (return)
+    )
+
+    (let discrim (- (* h h) c))
+    (unless (> discrim 0.0)
+        (return)
+    )
+
+    (let discrim-sqrt (sqrt discrim))
+
+    ; #insight The root of the quadratic equation is the parameter `t` at the hit point.
+    ; #insight Check both roots, pick the nearest root that lies in the acceptable range.
+    (let #var t (- h discrim-sqrt))
+
+    (unless (interval-surrounds? ray-t t)
+        (<- t (+ h discrim-sqrt))
+        (unless (interval-surrounds? ray-t t)
+            (return)
+        )
+    )
+
+    (let point (point-at ray t))
+    ; #insight Optimized normal computation for sphere.
+    (let outward-normal (/ (- point center) radius))
+
+    (let front-face (< (* dir outward-normal) 0.0))
+    (let normal (if front-face
+        outward-normal
+    (else (* outward-normal -1.0))))
+
+    (Hit t point normal front-face mat)
+))

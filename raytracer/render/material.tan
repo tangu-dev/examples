@@ -1,0 +1,33 @@
+(use {Vec3} /vec)
+
+; Material representation supporting Lambertian diffuse, Metal, and Glass dielectric materials.
+#pub
+(def Material (Struct
+    #Symbol type
+    #Vec3 albedo
+    #Float fuzz
+    #Float ref-idx
+))
+
+; Constructs a Lambertian diffuse material.
+#pub
+#inline
+(def material-lambertian (Func albedo (Material :lambertian albedo 0.0 0.0)))
+
+; Constructs a metallic reflective material with adjustable roughness (fuzz).
+#pub
+#inline
+(def material-metal (Func [albedo fuzz] (Material :metal albedo (clamp fuzz 0.0 1.0) 0.0)))
+
+; Constructs a clear glass dielectric material with index of refraction.
+#pub
+#inline
+(def material-glass (Func ref-idx (Material :glass (Vec3 1.0 1.0 1.0) 0.0 ref-idx)))
+
+; Constructs a tinted glass dielectric material.
+#pub
+#inline
+(def material-glass-tinted (Func [albedo ref-idx] (Material :glass albedo 0.0 ref-idx)))
+
+; Alias for material-glass.
+(let #pub material-dielectric material-glass)
